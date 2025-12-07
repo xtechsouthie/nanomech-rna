@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+#data
+movesets/
+X5/
+eternamoves-select.zip
+
