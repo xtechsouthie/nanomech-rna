@@ -19,6 +19,8 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, device):
     for inputs, labels in dataloader:
         inputs, labels = inputs.to(device), labels.to(device)
 
+        labels = torch.argmax(labels, dim=1)
+
         optimizer.zero_grad()
 
         output = model(inputs)
@@ -31,9 +33,8 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, device):
 
         running_loss += loss.item() * inputs.size(0)
         _, predicted = torch.max(output, 1)
-        _, true_labels = torch.max(labels, 1)
         total += labels.size(0)
-        correct += (predicted == true_labels).sum().item()
+        correct += (predicted == labels).sum().item()
 
     epoch_loss = running_loss/ total
     epoch_acc = 100.0 * correct / total
@@ -49,15 +50,15 @@ def validate(model, dataloader, criterion, device):
     with torch.no_grad():
         for inputs, labels in dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
+            labels = torch.argmax(labels, dim=1)
             
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             
             running_loss += loss.item() * inputs.size(0)
             _, predicted = torch.max(outputs, 1)
-            _, true_labels = torch.max(labels, 1)
             total += labels.size(0)
-            correct += (predicted == true_labels).sum().item()
+            correct += (predicted == labels).sum().item()
     
     epoch_loss = running_loss / total
     epoch_acc = 100.0 * correct / total
@@ -125,5 +126,31 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler,
     print("training complete")
     print(f"best validation accuracy: {best_val_acc:.2f}")
 
+    return metrics
 
+def test_model(model, test_loader, device):
+    """Test the model"""
+    model.eval()
+    correct = 0
+    total = 0
+    
+    print("\n" + "=" * 70)
+    print("TESTING MODEL")
+    print("=" * 70)
+    
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            labels = torch.argmax(labels, dim=1)
+            
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    
+    test_acc = 100.0 * correct / total
+    print(f'Test Accuracy: {test_acc:.2f}%')
+    print("=" * 70)
+    
+    return test_acc
 

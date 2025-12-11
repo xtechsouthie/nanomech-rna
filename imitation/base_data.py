@@ -2,11 +2,12 @@ import os
 from glob import glob
 import pickle 
 import pandas as pd #type: ignore
-import json
 import numpy as np
 from sklearn.model_selection import train_test_split #type: ignore
 
 MAX_LENGTH = 350 #maximum length of the puzzles
+
+#check for the train test split percent.
 
 def get_data(folder: str):
     print("Getting Data...")
@@ -15,8 +16,10 @@ def get_data(folder: str):
         X_files = glob(os.path.join(folder, "X5-exp-loc-*"))
         y_loc_files = glob(os.path.join(folder, "y5-exp-loc-*"))
         y_base_files = glob(os.path.join(folder, "y5-exp-base-*"))
+        print(f"Found {len(X_files)} X files, {len(y_loc_files)} y_loc files, {len(y_base_files)} y_base files")
     except Exception as e:
         print(f"error getting files: {e}")
+        return {}, set ()
 
     X_pids = [int(f.split("-")[-1]) for f in X_files]
     y_loc_pids = [int(f.split("-")[-1]) for f in y_loc_files]
@@ -89,7 +92,17 @@ def load_data(file_map, complete_pids):
 def load_base_data(folder: str):
 
     file_map, complete_pids = get_data(folder)
+
+    if not complete_pids:
+        print(f"ERROR: No complete puzzles found in {folder}")
+        return None, None, None, None, None, None
+    
+
     full_X, full_y = load_data(file_map, complete_pids)
+
+    if not full_X:
+        print("ERROR: No samples loaded!")
+        return None, None, None, None, None, None
 
     puzzle_length = []
     for puz in range(len(full_X)):
@@ -112,16 +125,16 @@ def load_base_data(folder: str):
     X_train, X_temp, y_train, y_temp = train_test_split(
         X, y,
         test_size = 0.2,
-        random_state = 69,
+        random_state = 42,
         stratify = y_classes
     )
 
-    y_temp_classes = np.argmax(y, axis=1)
+    y_temp_classes = np.argmax(y_temp, axis=1)
 
     X_test, X_val, y_test, y_val = train_test_split(
         X_temp, y_temp,
         test_size=0.5,
-        random_state=69,
+        random_state=42,
         stratify=y_temp_classes
     )
 
