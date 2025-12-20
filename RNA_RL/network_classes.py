@@ -7,36 +7,49 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class MLP(nn.Module):
+# class MLP(nn.Module):
 
-    def __init__(self, in_channels: int, out_channels: int):
+#     def __init__(self, in_channels: int, out_channels: int):
+#         super().__init__()
+
+#         self.layers = nn.Sequential(
+#             nn.Linear(in_channels, out_channels),
+#             nn.BatchNorm1d(out_channels),
+#             nn.ReLU(inplace=True),
+#             nn.Linear(out_channels, out_channels)
+#         )
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+#         return self.layers(x)
+    
+class GINLayer(nn.Module):
+
+    def __init__(self, in_channels: int, out_channels: int, edge_dim: int, residual: bool = True):
         super().__init__()
 
-        self.layers = nn.Sequential(
+        mlp = nn.Sequential(
             nn.Linear(in_channels, out_channels),
             nn.BatchNorm1d(out_channels),
             nn.ReLU(inplace=True),
             nn.Linear(out_channels, out_channels)
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-
-        return self.layers(x)
-    
-class GINLayer(nn.Module):
-
-    def __init__(self, in_channels: int, out_channels: int, edge_dim: int):
-        super().__init__()
-
-        self.mlp = MLP(in_channels, out_channels)
-        self.gin = GINEConv(self.mlp, edge_dim=edge_dim)
+        self.gin = GINEConv(mlp, edge_dim=edge_dim)
+        self.residual = residual and (in_channels == out_channels)
 
     def forward(self, x:torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor) -> torch.Tensor:
-        return self.gin(x, edge_index, edge_attr)
+        out = self.gin(x, edge_index, edge_attr)
+
+        if self.residual:
+            out = out + x
+        
+        return out
     
 class FeatureExtractorGNN(nn.Module):
 
-    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, edge_dim: int = 4, num_layers: int = 2, dropout: int = 0.3):
+    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, edge_dim: int = 4,
+                  num_layers: int = 2, dropout: int = 0.3, residual: bool = True):
         super().__init__()
 
         self.num_layers = num_layers
@@ -49,8 +62,9 @@ class FeatureExtractorGNN(nn.Module):
 
         self.layers = nn.ModuleList()
         for i in range(num_layers):
+            use_residual = residual and (dims[i] == dims[i+1])
             self.layers.append(
-                GINLayer(dims[i], dims[i + 1], edge_dim)
+                GINLayer(dims[i], dims[i + 1], edge_dim, residual=use_residual)
             )
 
         logger.info(f"The gnn is implemented with num_layers: {num_layers}, and dims: {dims}")
@@ -71,15 +85,16 @@ class LocationActor(nn.Module):
     def __init__(self, in_dim: int, hidden_dim: int = 16):
         super().__init__()
 
-        self.fc1 = nn.Linear(in_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, 1)
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(inplace =True),
+            nn.Linear(hidden_dim, 1)  
+        )
 
 
     def forward(self, x: torch.Tensor)-> torch.Tensor:
-        scores = F.relu(self.fc1(x))
-        scores = self.fc2(scores).squeeze(-1)
 
-        return scores
+        return self.net(x).squeeze(-1)
     
     
 class MutationActor(nn.Module):
@@ -87,32 +102,32 @@ class MutationActor(nn.Module):
     def __init__(self, in_dim: int, hidden_dim: int = 16, num_bases: int = 4):
         super().__init__()
 
-        self.fc1 = nn.Linear(in_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, num_bases)
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(inplace =True),
+            nn.Linear(hidden_dim, num_bases)  
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
-        x = F.relu(self.fc1(x)) #isme x is [B, in_dim] and final output is [B, num_bases]
-        logits = self.fc2(x)
-
-        return logits
+        return self.net(x)
     
 
 class LocationCritic(nn.Module):
     def __init__(self, in_dim: int, hidden_dim: int = 16):
 
         super().__init__()
-        self.fc1 = nn.Linear(in_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, 1)
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(inplace =True),
+            nn.Linear(hidden_dim, 1)
+        )
 
     def forward(self, x:torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
 
-        x = global_add_pool(x, batch) #from node level to graph level -> output = [B, in_dim]
+        x_pooled = global_add_pool(x, batch) #from node level to graph level -> output = [B, in_dim] 
 
-        x = F.relu(self.fc1(x))
-        value = self.fc2(x).squeeze(-1) 
-
-        return value
+        return self.net(x_pooled).squeeze(-1) # [B]
     
 
 class MutationCritic(nn.Module):
@@ -120,14 +135,15 @@ class MutationCritic(nn.Module):
     def __init__(self, in_dim: int, hidden_dim: int = 16):
 
         super().__init__()
-        self.fc1 = nn.Linear(in_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, 1)
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(inplace =True),
+            nn.Linear(hidden_dim, 1)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
-        x = F.relu(self.fc1(x)) #isme x is [B, in_dim]
-        value = self.fc2(x).squeeze(-1)
-        return value #value : [B]
+        return self.net(x).squeeze(-1) #value : [B]
     
 
 class RNADesignNetwork(nn.Module):
@@ -157,7 +173,9 @@ class RNADesignNetwork(nn.Module):
         self._init_weights()
 
         total_params = sum(p.numel() for p in self.parameters())
-        print(f"RNADesignNetwork initialized:  in={in_dim}, hidden={hidden_dim},\n embed={embed_dim}, layers={num_gnn_layers}, toal_params: {total_params: ,}")
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        logger.info(f"RNADesignNetwork initialized:  in={in_dim}, hidden={hidden_dim},\n embed={embed_dim}, layers={num_gnn_layers}")
+        logger.info(f"total_params: {total_params:,}, trainable params: {trainable_params:,}")
 
     def _init_weights(self):
         for m in self.modules():
@@ -173,7 +191,7 @@ class RNADesignNetwork(nn.Module):
 
         embeddings = self.feature_extractor(node_features, edge_index, edge_attr) #[N, embed_dim]
 
-        location_logits = self.location_actor(embeddings, batch, ptr) #[N]
+        location_logits = self.location_actor(embeddings) #[N]
 
         selected_embeddings = embeddings[target_locations] # [B]
 
@@ -196,17 +214,17 @@ class RNADesignNetwork(nn.Module):
         location_log_probs = torch.zeros_like(location_logits)
 
         for i in range(batch_size):
-            start, end = ptr[i]. item(), ptr[i + 1].item()
+            start, end = ptr[i].item(), ptr[i + 1].item()
             graph_logits = location_logits[start: end]
-            graph_probs = F.softmax(graph_logits, dim=0)
+            graph_probs = F.softmax(graph_logits, dim = 0)
             location_log_probs[start: end] = F.log_softmax(graph_logits, dim=0)
             
-            # Sample location
+            # sample location
             local_idx = torch.multinomial(graph_probs, 1).item()
             global_idx = start + local_idx
             sampled_locations.append(global_idx)
         
-        sampled_locations = torch.tensor(sampled_locations, device=embeddings.device)
+        sampled_locations = torch.tensor(sampled_locations, device=embeddings.device, dtype=torch.long)
 
         selected_embeddings = embeddings[sampled_locations]
         mutation_logits = self.mutation_actor(selected_embeddings)
@@ -261,5 +279,3 @@ def create_network(config: Optional[Dict] = None) -> RNADesignNetwork:
     return RNADesignNetwork(**config) 
 
     
-
-
