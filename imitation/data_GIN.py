@@ -9,9 +9,6 @@ from glob import glob
 from typing import Tuple, Optional, List, Dict 
 import logging
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import build_edge_index_attr, decode_structure
 
 logging.basicConfig(level=logging.INFO)

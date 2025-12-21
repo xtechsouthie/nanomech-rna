@@ -16,4 +16,7 @@ eternamoves-select.zip
 models/
 training_metrics.csv
 training_metrics.png
+checkpoints/
+imitation/data/
+
 
