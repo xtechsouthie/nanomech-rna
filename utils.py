@@ -1,7 +1,9 @@
 import RNA
 import numpy as np
 import torch
+import pickle
 from distance import hamming
+from typing import Optional
 import random
 from torch_geometric.data import Data
 
@@ -28,6 +30,101 @@ def structure_dotB2Edge(dotB):
             v += [last_place, i]
     edge_index = torch.tensor(np.array([u, v]))
     return edge_index
+
+def decode_structure(encoded: np.ndarray):
+
+    structure_map = {1: '.', 2: '(', 3: ')'}
+    return ''.join([structure_map.get(int(x), '.') for x in encoded])
+
+def load_pickle(filepath):
+    try:
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
+    except Exception as e:
+        print(f"Failed to load {filepath}: {e}")
+        return None
+
+
+def build_edge_index_attr(structure, seq_length=None): #give dotB structure
+
+    if seq_length is None:
+        seq_length = len(structure)
+
+    edge_index = []
+    edge_attrs = []
+
+    for i in range(seq_length - 1):
+        edge_index.append([i, i+1])
+        edge_attrs.append([1.0, 0.0, 1.0, 1.0]) # this is [is_backbone, is_pair, weight, distance]
+        edge_index.append([i + 1, i])
+        edge_attrs.append([1.0, 0.0, 1.0, 1.0])
+
+    stack = []
+    for i, char in enumerate(structure):
+        if char == "(":
+            stack.append(i)
+        elif char == ")":
+            if stack:
+                j = stack.pop()
+                edge_index.append([j, i])
+                distance = abs(i - j)
+                edge_attrs.append([0.0, 1.0, 1.0, float(distance)])
+                edge_index.append([i, j])
+                edge_attrs.append([0.0, 1.0, 1.0, float(distance)])
+
+    if len(edge_index) == 0:
+        return torch.zeros((2, 0), dtype=torch.long), torch.zeros((0, 4), dtype=torch.float)
+    
+    edge_index = torch.LongTensor(edge_index).T # [2, num_edges]
+    edge_attr = torch.FloatTensor(edge_attrs) # [num_edges, 4]
+
+    return edge_index, edge_attr
+    
+def collate_graphs(batch):
+
+    batch_size = len(batch)
+
+    node_features_list = []
+    edge_index_list = []
+    edge_attr_list = []
+    batch_list = []
+    locations = []
+    mutations = []
+    seq_lengths = []
+
+    node_offset = 0
+    ptr = [0]
+
+    for i, sample in enumerate(batch):
+        num_nodes = sample['node_features'].size(0)
+
+        node_features_list.append(sample['node_features'])
+
+        edge_index = sample['edge_index'] + node_offset
+
+        edge_attr_list.append(sample(['edge_attr']))
+        edge_index_list.append(edge_index)
+
+        batch_list.append(torch.full((num_nodes, ), i, dtype=torch.long))
+
+        locations.append(sample['location'] + node_offset)  # Offset location too
+        mutations.append(sample['mutation'])
+        seq_lengths.append(sample['seq_length'])
+
+        node_offset += num_nodes
+        ptr.append(node_offset)
+
+    return {
+        'node_features':  torch.cat(node_features_list, dim=0),  # [total_nodes, feat_dim]
+        'edge_index': torch.cat(edge_index_list, dim=1),      # [2, total_edges]
+        'edge_attr': torch.cat(edge_attr_list, dim=0),     # [total_edges, edge_dim]
+        'batch': torch.cat(batch_list, dim=0),        # [total_nodes]
+        'locations': torch.stack(locations),        # [batch_size]
+        'mutations': torch.stack(mutations),     # [batch_size]
+        'seq_lengths':  torch.stack(seq_lengths),    # [batch_size]
+        'ptr': torch.LongTensor(ptr)    # [batch_size + 1]
+    }
+
 
 def base2Onehot(base):
     onehot = torch.tensor(np.zeros((4,)), dtype=torch.long)
