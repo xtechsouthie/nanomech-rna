@@ -259,23 +259,6 @@ class RNADesignNetwork(nn.Module):
                 batch, ptr
             )
 
-def get_default_config() -> Dict:
-    return {
-        'in_dim': 8,
-        'hidden_dim': 32,
-        'embed_dim': 16,
-        'edge_dim': 4,
-        'num_gnn_layers':  2,
-        'actor_hidden': 16,
-        'critic_hidden': 16,
-        'num_bases': 4,
-        'dropout': 0.3
-    }
 
-
-def create_network(config: Optional[Dict] = None) -> RNADesignNetwork:
-    if config is None:
-        config = get_default_config()
-    return RNADesignNetwork(**config) 
 
     
