@@ -1,0 +1,65 @@
+# config_bc.yaml
+#behavioural cloning ki file
+
+data: 
+  folder: './X5'  
+  max_length: 400
+  test_size: 0.1
+  val_size: 0.1
+  num_workers: 0 
+
+#Network architecture
+network:
+  in_dim: 8 
+  hidden_dim: 32  # input and output badme same karde, residual lagane ke liye
+  embed_dim: 32 
+  edge_dim: 4  
+  num_gnn_layers: 5  
+  actor_hidden: 16  
+  critic_hidden: 16  
+  num_bases: 4 
+  dropout: 0.3
+
+#training settings
+training:
+  batch_size: 64
+  num_epochs: 150
+  learning_rate: 0.001  
+  weight_decay: 0.0001  
+  location_weight: 1.0 
+  mutation_weight: 1.0  
+  grad_clip: 1.0  # gradient clipping value
+  patience: 20
+  
+#scheduler settings
+scheduler:
+  mode: 'min'
+  factor: 0.5
+  patience: 5
+  verbose: true
+
+# Checkpoint settings
+checkpoint:
+  save_dir: './checkpoints/bc'
+  save_freq: 25  # Save checkpoint every N epochs
+  save_best: true
+  save_final: true
+
+#device settings
+device: 
+  use_cuda: true  
+  device_id: 0 
+
+#logging settings
+logging:
+  log_level: 'INFO' 
+  log_file: './logs/bc_training.log'
+  console_output: true
+
+#reproducibility
+seed: 42
+
+#evaluation settings
+evaluation:
+  evaluate_on_test: true
+  inference_mode: false  
