@@ -3,10 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
+from torch_geometric.data import Batch
 from torch_geometric.nn import global_add_pool
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 import logging 
-
+import copy
 
 from RNA_RL.network_classes import (
     FeatureExtractorGNN,
@@ -199,3 +200,122 @@ class ActorCritic(nn.Module):
 
         return location_values, mutation_values
     
+    def load_pretrained_bc(self, checkpoint_path, load_backbone, load_actors, freeze_backbone, 
+                           freeze_actors, strict=False):
+        
+        logger.info(f"Loading pretrained behaviour cloning weights from {checkpoint_path}")
+
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+
+        bc_state_dict = checkpoint['model_state_dict']
+
+        current_state = self.state_dict()
+
+        loaded_back_keys = []
+        skipped_back_keys = []
+
+        if load_backbone:
+            backbone_keys = [k for k in bc_state_dict.keys() if k.startswith('feature_extractor')]
+            for key in backbone_keys:
+                if key in current_state and bc_state_dict[key].shape == current_state[key].shape:
+                    current_state[key].copy_(bc_state_dict[key])
+                    loaded_back_keys.append(key)
+                else:
+                    skipped_back_keys.append(key)
+            logger.info(f"loaded {len(loaded_back_keys)} GNN keys and skipped {len(skipped_back_keys)} GNN keys")
+
+        loaded_act_keys = []
+        skipped_act_keys = []
+
+        if load_actors:
+            actor_keys = [k for k in bc_state_dict.keys() if k.startswith('location_actor') or k.startswith('mutation_actor')]
+            for key in actor_keys:
+                if key in current_state and bc_state_dict[key].shape == current_state[key].shape:
+                    current_state[key].copy_(bc_state_dict[key])
+                    loaded_act_keys.append(key)
+                else:
+                    skipped_act_keys.append(key)
+            logger.info(f"loaded {len(loaded_act_keys)} actor keys and skipped {len(skipped_act_keys)} actor keys")
+
+        self.load_state_dict(current_state)
+
+        if freeze_backbone:
+            for param in self.feature_extractor.parameters():
+                param.requires_grad = False
+            logger.info("feature extractor parameters frozen")
+
+        if freeze_actors:
+            for param in self.location_actor.parameters():
+                param.requires_grad = False
+            for param in self.mutation_actor.parameters():
+                param.requires_grad = False
+            logger.info("actor parameters are frozen")
+
+
+        loaded_back_keys.extend(loaded_act_keys)
+        skipped_back_keys.extend(skipped_act_keys)
+
+        info = {
+            'loaded_keys': loaded_back_keys,
+            'skipped_keys': skipped_back_keys,
+            'bc_epoch': checkpoint.get('epoch', -1),
+            'bc_metrics': checkpoint.get('metrics', {}),
+            'backbone_frozen': freeze_backbone,
+            'actors_frozen': freeze_actors
+        }
+
+        logger.info(f"loaded {len(loaded_back_keys)} parameters from BC checkpoint (epoch {info['bc_epoch']})")
+        if skipped_back_keys:
+            logger.warning(f"skipped {len(skipped_back_keys)} keys (shape mismatch or not found)")
+        
+        return info
+    
+    def unfreeze_all(self):
+        for param in self.parameters():
+            param.requires_grad = True
+        logger.info("All parameters unfrozen")
+
+    def freeze_backbone(self):
+        for param in self.feature_extractor.parameters():
+            param.requires_grad = True
+        logger.info(f"backbone parameters frozen")
+
+    def unfreeze_backbone(self):
+        for param in self.feature_extractor.parameters():
+            param.requires_grad = True
+        logger.info("backbone parameters unfrozen")
+
+    def get_trainable_params_info(self):
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        frozen = sum(p.numel() for p in self.parameters() if not p.requires_grad)
+
+        total = trainable + frozen
+
+        return {
+            'trainable': trainable,
+            'frozen': frozen,
+            'total': total,
+            'trainable_pct': (100 * trainable / total) if total > 0 else 0
+        }
+    
+
+def create_actor_critic(in_dim: int = 8, hidden_dim: int = 64,
+                        embed_dim: int = 32, edge_dim: int = 4, num_gnn_layers: int = 3,
+                        dropout: float = 0.2, pretrained_path: Optional[str] = None, 
+                        freeze_pretrained: bool = False, device: torch.device = torch.device('cpu')):
+    
+    model = ActorCritic(in_dim = in_dim, hidden_dim= hidden_dim,
+                        embed_dim= embed_dim, edge_dim= edge_dim,
+                        num_gnn_layers= num_gnn_layers, dropout= dropout).to(device)
+    
+    if pretrained_path is not None:
+        model.load_pretrained_bc(
+            pretrained_path,
+            load_backbone= True,
+            load_actors= True,
+            freeze_backbone= freeze_pretrained,
+            freeze_actors= False
+        )
+
+    return model
+
