@@ -73,7 +73,7 @@ class ActorCritic(nn.Module):
 
     def actor_parameters(self):
         params = list(self.feature_extractor.parameters()) #i added the gnn in here too
-        params += list(self.location_critic.parameters())
+        params += list(self.location_actor.parameters())
         params += list(self.mutation_actor.parameters())
         return params 
     
@@ -96,6 +96,7 @@ class ActorCritic(nn.Module):
         location_logits = self.location_actor(embeddings)
 
         locations = torch.zeros(batch_size, dtype=torch.long, device=device)
+        global_locations = torch.zeros(batch_size, dtype=torch.long, device=device)
 
         location_log_probs = torch.zeros(batch_size, device=device)
         location_entropy = torch.zeros(batch_size, device=device)
@@ -111,15 +112,15 @@ class ActorCritic(nn.Module):
             else:
                 local_idx = dist.sample()
 
-            global_idx = start + local_idx.item()
-            locations[i] = global_idx #idhar yaad rakhiyo global kardiya hai local nai, badme local mat lena
+            locations[i] = local_idx
+            global_locations[i] = start + local_idx.item()
             location_log_probs[i] = dist.log_prob(local_idx)
             location_entropy[i] = dist.entropy()
 
-        selected_embeddings = embeddings[locations]
+        selected_embeddings = embeddings[global_locations]
 
         mutation_logits = self.mutation_actor(selected_embeddings)
-        mutation_dist = Categorical(mutation_logits)
+        mutation_dist = Categorical(logits=mutation_logits)
 
         if deterministic:
             mutations = mutation_dist.argmax(dim=-1)
@@ -135,10 +136,10 @@ class ActorCritic(nn.Module):
         actions = ActionOutput(
             locations = locations,
             mutations = mutations,
-            location_log_probs=location_log_probs,
-            mutation_log_probs=mutation_log_probs,
-            location_entropy=location_entropy,
-            mutation_entropy=mutation_entropy
+            location_log_probs = location_log_probs,
+            mutation_log_probs = mutation_log_probs,
+            location_entropy = location_entropy,
+            mutation_entropy =mutation_entropy
         )
 
         values = ValueOutput(
@@ -159,13 +160,19 @@ class ActorCritic(nn.Module):
 
         location_log_probs = torch.zeros(batch_size, device =device)
         location_entropy = torch.zeros(batch_size, device = device)
+        global_locations = torch.zeros(batch_size, dtype=torch.long, device=device)
 
         for i in range(batch_size):
             start, end = ptr[i].item(), ptr[i+1].item()
             graph_logits = location_logits[start:end]
 
             dist = Categorical(logits = graph_logits)
-            local_idx = locations[i] - start
+            local_idx = locations[i]
+
+            num_nodes = end - start
+            if local_idx < 0 or local_idx >= num_nodes:
+                logger.error(f"invalid local idx: {local_idx}, num_nodes: {num_nodes}")
+                local_idx = torch.clamp(local_idx, 0, num_nodes - 1)
 
             location_log_probs[i] = dist.log_prob(local_idx)
             location_entropy[i] = dist.entropy()

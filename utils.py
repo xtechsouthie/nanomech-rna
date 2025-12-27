@@ -140,7 +140,7 @@ def collate_graphs(batch):
 
         edge_index = sample['edge_index'] + node_offset
 
-        edge_attr_list.append(sample(['edge_attr']))
+        edge_attr_list.append(sample['edge_attr'])
         edge_index_list.append(edge_index)
 
         batch_list.append(torch.full((num_nodes, ), i, dtype=torch.long))
@@ -245,7 +245,7 @@ def build_node_features_8ch(seq_base: str, current_structure: str,
     ch7 = np.ones(seq_len, dtype=np.float32)
 
     features = np.stack([ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7], axis=0)
-    features = torch.Tensor(features.T, dtype=torch.float32)
+    features = torch.tensor(features.T, dtype=torch.float32)
 
     return features    
 

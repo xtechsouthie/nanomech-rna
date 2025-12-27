@@ -41,7 +41,7 @@ class BCTrainer:
         )
 
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.1, patience=5, verbose=True
+            self.optimizer, mode='min', factor=0.1, patience=7, verbose=True
         )
 
         # self.location_loss_fn = nn.CrossEntropyLoss()
