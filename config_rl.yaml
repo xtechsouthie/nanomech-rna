@@ -5,6 +5,10 @@ data:
   test_dir: './data_rl/rfam_learn/test'
   max_structures: 1000  # null pe sab load hote
 
+  use_curriculum: True  
+  bin_size: 50 
+  min_bin_count: 150
+
 # network archi, match the BC pretraining phase
 network:
   in_dim: 8
@@ -21,7 +25,7 @@ network:
 training:
   num_epochs: 2
   steps_per_epoch: 2000
-  max_ep_len: 100
+  max_ep_len: 500
   
   # pretrained weights
   pretrained: './checkpoints/bc/best_model.pt'
@@ -50,7 +54,8 @@ checkpoint:
 
 #evaluation settings
 evaluation:
-  evaluate_every: 5
+  evaluate_every: 10
+  num_eval_samples: 10
 
 #device settings
 device:

@@ -6,6 +6,7 @@ import random
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
+from collections import defaultdict
 
 import yaml
 import numpy as np
@@ -30,7 +31,41 @@ def load_config(config_path: str = 'config_rl.yaml'):
 
     return config
 
-def load_structures_from_rna_files(data_dir="../data_rl/rfam_learn/train", max_structures=None):
+
+def curriculum_sample_structures(structures, max_structures, bin_size, min_bin_count):
+
+    bins = defaultdict(list)
+    for rna_id, structure in structures:
+        length = len(structure)
+        bin_idx = length // bin_size
+        bins[bin_idx].append((rna_id, structure))
+
+    valid_bins = {k: v for k, v in bins.items() if len(v) >= min_bin_count}
+
+    if not valid_bins:
+        logger.warning(f"no bins with >= {min_bin_count} structures found, using all structures")
+        sorted_structures = sorted(structures, key=lambda x: len(x[1]))
+        return sorted_structures[:max_structures]
+    
+    num_bins = len(valid_bins)
+    per_bin = max_structures // num_bins
+
+    sampled = []
+    for bin_idx in sorted(valid_bins.keys()):
+        bin_structures = valid_bins[bin_idx]
+        n_sample = min(per_bin, len(bin_structures))
+        sampled.extend(random.sample(bin_structures, n_sample))
+
+    sampled.sort(key=lambda x: len(x[1]))
+
+    logger.info(f"curriculum learning samples: {len(sampled)} structures from {num_bins} bins")
+    for bin_idx in sorted(valid_bins.keys()):
+        bin_lens = [len(s) for _, s in valid_bins[bin_idx]]
+        logger.info(f"bin {bin_idx} [{min(bin_lens)}-{max(bin_lens)}]: {len(valid_bins[bin_idx])} structures")
+    
+    return sampled
+
+def load_structures_from_rna_files(data_dir="../data_rl/rfam_learn/train", max_structures=None, use_curriculum = True, bin_size=50, min_bin_count=150):
 
     data_path = Path(data_dir)
 
@@ -76,7 +111,13 @@ def load_structures_from_rna_files(data_dir="../data_rl/rfam_learn/train", max_s
             continue
 
     if max_structures and len(structures) > max_structures:
-        structures = random.sample(structures, max_structures)
+        if use_curriculum:
+            structures = curriculum_sample_structures(structures, max_structures, bin_size, min_bin_count)
+        else:
+            structures = random.sample(structures, max_structures)
+
+    elif use_curriculum:
+        structures.sort(key=lambda x: len(x[1]))
 
     logger.info(f"loaded {len(structures)} structures from the data dir {data_dir}")
     return structures
@@ -131,8 +172,15 @@ def collect_rollout(env: RNA_design_env, ppo: PPO, buffer: RolloutBuffer, max_st
         'rna_id': getattr(env, 'rna_id', 0)
     }
 
-def evaluate(ppo, test_structure, max_ep_len):
+def evaluate(ppo, test_structure, max_ep_len, num_samples=10):
     logger.info(f"evaluating on {len(test_structure)} test structures..")
+
+    if num_samples and len(test_structure) > num_samples:
+        eval_structures = random.sample(test_structure, num_samples)
+        logger.info(f"evaluating on {num_samples} sampled structures (out of {len(test_structure)})")
+    else:
+        eval_structures = test_structure
+        logger.info(f"evaluating on {len(eval_structures)} test structures...")
 
     ep_rets, distances = [], []
     solved_count = 0
@@ -193,14 +241,19 @@ def train(config_path: str = 'config_rl.yaml'):
         yaml.dump(config, f)
 
     train_structures = load_structures_from_rna_files(
-        config['data']['data_dir'], config['data'].get('max_structures', None)
+        config['data']['data_dir'], 
+        config['data'].get('max_structures', None),
+        use_curriculum=config['data'].get('use_curriculum', True),
+        bin_size=config['data'].get('bin_size', 50),
+        min_bin_count=config['data'].get('min_bin_count', 150)
     )
 
     if not train_structures:
-        logger.info("structure loading failed successfully wow")
+        logger.error("structure loading failed successfully wow")
+        return
 
     test_structures = load_structures_from_rna_files(
-        config['data']['val_dir'], config['data'].get('max_structures', None)
+        config['data']['val_dir'], config['data'].get('max_structures', None), use_curriculum=False
     )
 
     if not test_structures:
@@ -264,6 +317,8 @@ def train(config_path: str = 'config_rl.yaml'):
     logger.info(f"epochs: {config['training']['num_epochs']}")
     logger.info("=" * 60)
 
+    global_structure_idx = 0
+
     for epoch in range(config['training']['num_epochs']):
         epoch_start = time.time()
 
@@ -275,18 +330,19 @@ def train(config_path: str = 'config_rl.yaml'):
             actor_critic.unfreeze_all()
             logger.info(f"epoch {epoch}: unfreexing the actors")
 
-        shuffled_structures = train_structures.copy()
-        random.shuffle(shuffled_structures)
+        # shuffled_structures = train_structures.copy()
+        # random.shuffle(shuffled_structures)
         
         ep_rets, ep_lens, distances = [], [], []
         solved_count = 0
         steps = 0
+
+        epoch_start_idx = global_structure_idx
         
         with tqdm(total=config['training']['steps_per_epoch'], desc=f'Epoch {epoch+1}') as pbar:
-            idx = 0
             while steps < config['training']['steps_per_epoch']:
-                rna_id, structure = shuffled_structures[idx % len(shuffled_structures)]
-                idx += 1
+                rna_id, structure = train_structures[global_structure_idx % len(train_structures)]
+                global_structure_idx += 1
                 
                 try:
                     env = RNA_design_env(target_structure=structure)
@@ -314,6 +370,8 @@ def train(config_path: str = 'config_rl.yaml'):
                 except Exception as e:
                     logger.warning(f"Error with structure {rna_id}: {e}")
                     continue
+
+        epoch_end_idx = global_structure_idx -1
         
         if len(buffer) > 0:
             update_info = ppo.update(buffer)
@@ -327,16 +385,22 @@ def train(config_path: str = 'config_rl.yaml'):
         avg_len = np.mean(ep_lens) if ep_lens else 0
         avg_dist = np.mean(distances) if distances else 0
         epoch_time = time.time() - epoch_start
+
+        start_struct_len = len(train_structures[epoch_start_idx % len(train_structures)][1])
+        end_struct_len = len(train_structures[epoch_end_idx % len(train_structures)][1])
+        
         
         logger.info(
             f"\nEpoch: {epoch+1:3d} | return: {avg_ret:7.1f} | length: {avg_len:7.1f}\n"
             f"distance: {avg_dist:5.1f} | solved: {solved_count}/{len(ep_rets)} ({solve_rate*100:.1f}%)\n"
             f"total solved: {len(solved_set)} | KL: {update_info.get('kl', 0):.4f} | Time: {epoch_time:.1f}s\n"
+            f"Structures: idx {epoch_start_idx % len(train_structures)} (len {start_struct_len}) "
+            f"to idx {epoch_end_idx % len(train_structures)} (len {end_struct_len})\n"
         )
         
         test_results = {}
         if config['evaluation'].get('evaluate_every', 10) > 0 and (epoch + 1) % config['evaluation']['evaluate_every'] == 0:
-            test_results = evaluate(ppo, test_structures, config['training']['max_ep_len'])
+            test_results = evaluate(ppo, test_structures, config['training']['max_ep_len'], config['evaluation']['num_eval_samples'])
             logger.info(
                 f"\nTesting | returns: {test_results['avg_return']:7.1f}\n"
                 f"Distance: {test_results['avg_distance']:5.1f} | "
