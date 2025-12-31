@@ -67,7 +67,7 @@ class FeatureExtractorGNN(nn.Module):
                 GINLayer(dims[i], dims[i + 1], edge_dim, residual=use_residual)
             )
 
-        logger.info(f"The gnn is implemented with num_layers: {num_layers}, and dims: {dims}")
+        logger.info(f"The gnn is implemented with num_layers: {num_layers}, and dims: {dims}, residual: {residual}")
 
     def forward(self, x:torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor) -> torch.Tensor:
 
@@ -150,7 +150,7 @@ class RNADesignNetwork(nn.Module):
 
     def __init__(self, in_dim: int = 9, hidden_dim: int = 32, embed_dim: int = 16, 
                  edge_dim: int = 4, num_gnn_layers: int = 2, actor_hidden: int = 16,
-                 critic_hidden: int = 16, num_bases:int =4, dropout: float = 0.3):
+                 critic_hidden: int = 16, num_bases:int =4, dropout: float = 0.3, residual: bool = False):
         
         super().__init__()
 
@@ -160,7 +160,8 @@ class RNADesignNetwork(nn.Module):
             out_dim=embed_dim,
             edge_dim=edge_dim,
             num_layers=num_gnn_layers,
-            dropout=dropout
+            dropout=dropout,
+            residual=residual
         )
 
         self.location_actor = LocationActor(embed_dim, actor_hidden)

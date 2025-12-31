@@ -117,7 +117,10 @@ class ActorCritic(nn.Module):
             location_log_probs[i] = dist.log_prob(local_idx)
             location_entropy[i] = dist.entropy()
 
+
         selected_embeddings = embeddings[global_locations]
+
+
 
         mutation_logits = self.mutation_actor(selected_embeddings)
         mutation_dist = Categorical(logits=mutation_logits)
@@ -130,8 +133,11 @@ class ActorCritic(nn.Module):
         mutation_log_probs = mutation_dist.log_prob(mutations)
         mutation_entropy = mutation_dist.entropy()
 
+
         location_values = self.location_critic(embeddings, batch)
         mutation_values = self.mutation_critic(selected_embeddings)
+
+        #print(f"locations: {locations}, mutations: {mutations}")
 
         actions = ActionOutput(
             locations = locations,
@@ -162,6 +168,7 @@ class ActorCritic(nn.Module):
         location_entropy = torch.zeros(batch_size, device = device)
         global_locations = torch.zeros(batch_size, dtype=torch.long, device=device)
 
+
         for i in range(batch_size):
             start, end = ptr[i].item(), ptr[i+1].item()
             graph_logits = location_logits[start:end]
@@ -170,14 +177,18 @@ class ActorCritic(nn.Module):
             local_idx = locations[i]
 
             num_nodes = end - start
+
             if local_idx < 0 or local_idx >= num_nodes:
                 logger.error(f"invalid local idx: {local_idx}, num_nodes: {num_nodes}")
                 local_idx = torch.clamp(local_idx, 0, num_nodes - 1)
 
-            location_log_probs[i] = dist.log_prob(local_idx)
+            computed_log_prob = dist.log_prob(local_idx)
+            location_log_probs[i] = computed_log_prob
             location_entropy[i] = dist.entropy()
+            global_locations[i] = start + local_idx.item()
 
-        selected_embeddings = embeddings[locations]
+        selected_embeddings = embeddings[global_locations]
+
 
         mutation_logits = self.mutation_actor(selected_embeddings)
         mutation_dist = Categorical(logits = mutation_logits)
@@ -185,8 +196,10 @@ class ActorCritic(nn.Module):
         mutation_log_probs = mutation_dist.log_prob(mutations)
         mutation_entropy = mutation_dist.entropy()
 
+
         location_values = self.location_critic(embeddings, batch)
         mutation_values = self.mutation_critic(selected_embeddings)
+
 
         return (
             location_log_probs, mutation_log_probs,
@@ -284,7 +297,7 @@ class ActorCritic(nn.Module):
 
     def freeze_backbone(self):
         for param in self.feature_extractor.parameters():
-            param.requires_grad = True
+            param.requires_grad = False
         logger.info(f"backbone parameters frozen")
 
     def unfreeze_backbone(self):

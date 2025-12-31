@@ -45,9 +45,10 @@ class RolloutBuffer:
     def store(self, state, location, mutation, loc_log_prob, mut_log_prob, 
               loc_value, mut_value, loc_reward, mut_reward, done):
         
-        assert self.ptr < self.size
+        if self.ptr >= self.size:
+            return False
 
-        self.state.append(state)
+        self.state.append(state.clone())
         self.locations.append(location)
         self.mutations.append(mutation)
         self.location_log_probs.append(loc_log_prob)
@@ -58,6 +59,7 @@ class RolloutBuffer:
         self.mutation_rewards.append(mut_reward)
         self.dones.append(done)
         self.ptr += 1
+        return True
 
     def finish_path(self, last_loc_val=0, last_mut_val=0): #last loc value se bootstrap karenge if trajectory was not ended
 
@@ -91,7 +93,10 @@ class RolloutBuffer:
 
     def get(self, device):
 
-        assert self.ptr == self.size
+        actual_size = len(self.location_adv)
+
+        if actual_size == 0:
+            raise ValueError("Buffer is empty, cannot get data...")
 
         loc_adv = np.array(self.location_adv)
         mut_adv = np.array(self.mutation_adv)
@@ -243,11 +248,11 @@ class PPO:
         loss_pi = loss_loc + loss_mut - self.entropy_coef * entropy #isme entropy dalke and nikalke dono test karle better kya aata hai
 
         with torch.no_grad():
-            approx_kl = 0.5 * (
-                (data['loc_log_probs'] - loc_log_probs).mean() + 
-                (data['mut_log_probs'] - mut_log_probs).mean()
-            ).item()
-
+            loc_log_ratio = loc_log_probs - data['loc_log_probs']
+            mut_log_ratio = mut_log_probs - data['mut_log_probs']
+            
+            approx_kl = 0.5 * (loc_log_ratio.pow(2).mean() + mut_log_ratio.pow(2).mean()).item()
+        
             loc_clipfrac = ((loc_ratio - 1).abs() > self.clip_ratio).float().mean().item()
             mut_clipfrac = ((mut_ratio - 1).abs() > self.clip_ratio).float().mean().item()
         
@@ -286,19 +291,25 @@ class PPO:
 
         batch = Batch.from_data_list(data['states'])
 
-        self.ac.train()
+        # self.ac.train()
 
         pi_info = {}
         for i in range(self.train_actor_iters):
 
             self.actor_optimizer.zero_grad()
 
+            self.ac.eval()
             loss_pi, pi_info = self.compute_loss_pi(batch, data)
 
-            if pi_info['kl'] > 1.5 * self.target_kl:
-                logger.debug(f"early stopping at step {i} due to reaching max kl")
+            # if pi_info['kl'] > 1.5 * self.target_kl:
+            #     logger.info(f"early stopping at step {i} due to reaching max kl")
+            #     break
+
+            if pi_info['kl'] > 5.0 * self.target_kl:  # Much higher threshold
+                logger.warning(f"very high KL at iter {i}: {pi_info['kl']:.6f}")
                 break
 
+            self.ac.train()
             loss_pi.backward()
             nn.utils.clip_grad_norm_(self.ac.parameters(), self.max_grad_norm)
             self.actor_optimizer.step()
@@ -307,7 +318,9 @@ class PPO:
 
         for i in range(self.train_critic_iters):
             self.critic_optimizer.zero_grad()
+            self.ac.eval()
             loss_v = self.compute_loss_v(batch, data)
+            self.ac.train()
             loss_v.backward()
             nn.utils.clip_grad_norm_(self.ac.parameters(), self.max_grad_norm)
             self.critic_optimizer.step()

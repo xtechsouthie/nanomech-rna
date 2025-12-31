@@ -11,14 +11,15 @@ data:
 #Network architecture
 network:
   in_dim: 8 
-  hidden_dim: 32  # input and output badme same karde, residual lagane ke liye
+  hidden_dim: 64  # input and output badme same karde, residual lagane ke liye
   embed_dim: 32 
   edge_dim: 4  
-  num_gnn_layers: 5  
+  num_gnn_layers: 3  
   actor_hidden: 16  
   critic_hidden: 16  
   num_bases: 4 
   dropout: 0.25
+  residual: True
 
 #training settings
 training:
@@ -32,11 +33,11 @@ training:
   patience: 25
   
 #scheduler settings
-scheduler:
-  mode: 'min'
-  factor: 0.5
-  patience: 10
-  verbose: true
+# scheduler:
+#   mode: 'min'
+#   factor: 0.5
+#   patience: 10
+#   verbose: true
 
 # Checkpoint settings
 checkpoint:

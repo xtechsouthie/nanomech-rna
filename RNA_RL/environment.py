@@ -43,7 +43,7 @@ class RNA_design_env(gym.Env):
             max_size=None,
             action_space_size=4,
             reward_alpha=1.0,
-            reward_beta=1.0,
+            reward_beta=0.2,
             reward_gamma=1.0
     ):
         super(RNA_design_env, self).__init__()

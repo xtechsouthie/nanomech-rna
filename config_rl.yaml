@@ -8,54 +8,57 @@ data:
   use_curriculum: True  
   bin_size: 50 
   min_bin_count: 150
+  take_bins: 2
 
 # network archi, match the BC pretraining phase
 network:
   in_dim: 8
-  hidden_dim: 32
+  hidden_dim: 64
   embed_dim: 32
   edge_dim: 4
-  num_gnn_layers: 5
+  num_gnn_layers: 3
   actor_hidden: 16
   critic_hidden: 16
   num_bases: 4
   dropout: 0.25
+  residual: True
 
 # training settings
 training:
-  num_epochs: 2
-  steps_per_epoch: 2000
-  max_ep_len: 500
+  num_epochs: 400
+  epochs_per_structure: 3 
+  steps_per_epoch: 1000
+  max_ep_len: 250
   
   # pretrained weights
   pretrained: './checkpoints/bc/best_model.pt'
-  freeze_backbone_epochs: 15  # freeze backbone for da first x epochs
+  freeze_backbone_epochs: 25  # freeze backbone for da first x epochs
   freeze_actors_epochs: 0    #dont freeze actors
   
   # learningn rate
-  lr_actor: 0.0001
-  lr_critic: 0.001
-  lr_backbone: 0.0001
+  lr_actor: 0.00001
+  lr_critic: 0.0001
+  lr_backbone: 0.00001
 
 # PPO hyperparams
 ppo:
-  gamma: 0.99
+  gamma: 0.9
   lam: 0.95
   clip_ratio: 0.2
-  target_kl: 0.01
-  entropy_coef: 0.01
+  target_kl: 0.15
+  entropy_coef: 0.02
   train_actor_iters: 10
   train_critic_iters: 10
 
 #checkpoint settings
 checkpoint:
   save_dir: './checkpoints/ppo'
-  save_freq: 10 
+  save_freq: 100 
 
 #evaluation settings
 evaluation:
-  evaluate_every: 10
-  num_eval_samples: 10
+  evaluate_every: 700
+  num_eval_samples: 5
 
 #device settings
 device:
