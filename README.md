@@ -2,6 +2,11 @@
 
 A reinforcement learning framework for RNA sequence design using Graph Neural Networks (GNNs) with a two stage training approach: **Behavioral Cloning (BC)** for imitation learning from expert solutions, followed by **Proximal Policy Optimization (PPO)** for reinforcement learning. The model learns to predict nucleotide mutations at specific locations to design RNA sequences that fold into target secondary structures. Built with PyTorch Geometric for graph based representations of RNA structures.
 
+Here is a example video of the working model on a simple example:
+https://github.com/user-attachments/assets/aec89e3d-c555-4739-a701-a7e504d0e7c7
+
+
+
 ## Data
 
 ### BC Training Data (EternaBrain)
