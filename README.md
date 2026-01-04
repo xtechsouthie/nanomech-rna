@@ -55,7 +55,7 @@ python main.py
 ### Stage 1: Behavioral Cloning (BC)
 
 Train the model to imitate expert solutions :
-Update the config_bc.yaml to select the network configurations.
+Update the `config_bc.yaml` to select the network configurations.
 
 ```bash
 python bc_main.py
@@ -64,7 +64,7 @@ python bc_main.py
 ### Stage 2: Reinforcement Learning (PPO)
 
 Fine tune the model using RL. 
-change the epochs, the length of puzzles to train on, data directory, etc in the config_rl.yaml file.
+change the epochs, the length of puzzles to train on, data directory, etc in the `config_rl.yaml` file.
 
 **Important:** Before running, ensure:
 1. `config_rl.yaml` network architecture matches `config_bc.yaml`
