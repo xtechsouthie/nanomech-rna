@@ -20,6 +20,9 @@ checkpoints/
 imitation/data/
 train2.py
 lr_finder.png
+uv.lock
+pyproject.toml
+.python-version
 
 
 
