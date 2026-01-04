@@ -1,0 +1,26 @@
+model_path:  "model/best_model.pt"
+input_file: "inputs.txt"   
+output_file: "outputs.txt"            
+
+device:  "auto"
+
+network:
+  in_dim: 8
+  hidden_dim: 64
+  embed_dim: 32
+  edge_dim: 4
+  num_gnn_layers: 3
+  actor_hidden: 16
+  critic_hidden: 16
+  num_bases: 4
+  dropout: 0
+  residual: True
+
+inference:
+  max_steps: 500  
+  num_samples: 10 
+  deterministic: false
+  
+  use_post_processing: true
+  refine_trajs:  50 
+  refine_steps: 20   

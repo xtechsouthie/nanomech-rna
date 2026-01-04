@@ -3,12 +3,12 @@ data:
   data_dir: './data_rl/rfam_learn/train'
   val_dir: './data_rl/rfam_learn/validation'
   test_dir: './data_rl/rfam_learn/test'
-  max_structures: 1000  # null pe sab load hote
+  max_structures: 251  # null pe sab load hote
 
   use_curriculum: True  
   bin_size: 50 
   min_bin_count: 150
-  take_bins: 2
+  take_bins: 3
 
 # network archi, match the BC pretraining phase
 network:
@@ -20,45 +20,45 @@ network:
   actor_hidden: 16
   critic_hidden: 16
   num_bases: 4
-  dropout: 0.25
+  dropout: 0
   residual: True
 
 # training settings
 training:
-  num_epochs: 400
-  epochs_per_structure: 3 
+  num_epochs: 1000
+  epochs_per_structure: 1 
   steps_per_epoch: 1000
   max_ep_len: 250
   
   # pretrained weights
   pretrained: './checkpoints/bc/best_model.pt'
-  freeze_backbone_epochs: 25  # freeze backbone for da first x epochs
+  freeze_backbone_epochs: 10  # freeze backbone for da first x epochs
   freeze_actors_epochs: 0    #dont freeze actors
   
   # learningn rate
-  lr_actor: 0.00001
-  lr_critic: 0.0001
-  lr_backbone: 0.00001
+  lr_actor: 0.003
+  lr_critic: 0.001
+  lr_backbone: 0.0001
 
 # PPO hyperparams
 ppo:
-  gamma: 0.9
+  gamma: 0.95
   lam: 0.95
   clip_ratio: 0.2
-  target_kl: 0.15
-  entropy_coef: 0.02
+  target_kl: 0.01
+  entropy_coef: 0.01
   train_actor_iters: 10
   train_critic_iters: 10
 
 #checkpoint settings
 checkpoint:
   save_dir: './checkpoints/ppo'
-  save_freq: 100 
+  save_freq: 25
 
 #evaluation settings
 evaluation:
-  evaluate_every: 700
-  num_eval_samples: 5
+  evaluate_every: 400
+  num_eval_samples: 3
 
 #device settings
 device:
