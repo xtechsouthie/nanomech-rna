@@ -1,14 +1,18 @@
 # nanomech-rna
 
-A reinforcement learning framework for RNA sequence design using Graph Neural Networks (GNNs) with a two stage training approach: Behavioral Cloning (BC) for imitation learning from expert solutions, followed by Proximal Policy Optimization (PPO) for reinforcement learning.  The model learns to predict nucleotide mutations at specific locations to design RNA sequences that fold into target secondary structures.  Built with PyTorch Geometric for graph based representations of RNA structures.
+A reinforcement learning framework for RNA sequence design using Graph Neural Networks (GNNs) with a two stage training approach: **Behavioral Cloning (BC)** for imitation learning from expert solutions, followed by **Proximal Policy Optimization (PPO)** for reinforcement learning. The model learns to predict nucleotide mutations at specific locations to design RNA sequences that fold into target secondary structures. Built with PyTorch Geometric for graph based representations of RNA structures.
 
 ## Data
 
-Download the required data files: 
-- **The BC Dataset is already in the repo, link to original dataset**: [Download from the Repo](https://github.com/eternagame/EternaBrain) - Extract to `./X5/`
-- **RL Training Data**: [Download from the Repo](https://github.com/automl/learna) - you can find the intructions to download the Rfam Learn dataset in the readme, Extract to `./data_rl`
+### BC Training Data (EternaBrain)
+- **Already included** in this repo under `./X5/`
+- Original dataset: [EternaBrain on GitHub](https://github.com/eternagame/EternaBrain)
+- Contains expert human solutions to RNA design puzzles
 
-If you put your datasets in folders with different names, please update the cofig yaml files accordingly.
+### RL Training Data (Rfam Learn)
+- Download from: [LEARNA on GitHub](https://github.com/automl/learna)
+- Follow instructions in their README to download the Rfam Learn dataset
+- Extract to `./data_rl/rfam_learn/`
 
 ## Installation
 
@@ -19,28 +23,33 @@ conda create -n nanomech-rna python=3.12
 conda activate nanomech-rna
 ```
 
-### 3. Install Python dependencies
+### 2. Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Inference (on pretrained model)
+## Inference (On Pretrained Model)
 
-Put your RNA sequence in dot bracket notation in inputs.txt file
+1. **Prepare your input**: Add RNA structures (dot bracket notation) to `inputs.txt`, one per line:
+```
+(((((......))))) 
+((((((.((((....))))))).)))..........
+```
 
-Then run:
-```bash
+2. **Run inference**:
+ ```bash
 python main.py
 ```
-Your answer would be in outputs.txt file
 
-If you want to change the input and output files, please change in the config_inference.yaml file
-Please make sure that the network architecture in the config files of Behavioral Cloning, Reinforcement Learning and Inference is same.
+3. **Check results**: Designed sequences will be saved to `outputs.txt`
 
 ## Training
 
 ### Stage 1: Behavioral Cloning (BC)
+
+Train the model to imitate expert solutions :
+Update the config_bc.yaml to select the network configurations.
 
 ```bash
 python bc_main.py
@@ -48,8 +57,12 @@ python bc_main.py
 
 ### Stage 2: Reinforcement Learning (PPO)
 
-Make sure that the network architecture is same as the Behavioral Cloning, by looking at the config files.
-Add the path to the saved BC pretrained model in the config_rl.yaml file.
+Fine tune the model using RL. 
+change the epochs, the length of puzzles to train on, data directory, etc in the config_rl.yaml file.
+
+**Important:** Before running, ensure:
+1. `config_rl.yaml` network architecture matches `config_bc.yaml`
+2. `training.pretrained` points to your BC checkpoint (e.g., `./checkpoints/bc/best_model.pt`)
 
 ```bash
 python train.py
