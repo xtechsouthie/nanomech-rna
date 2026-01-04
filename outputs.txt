@@ -2,7 +2,7 @@
 
 Puzzle 1: SOLVED
 -- target: (((((((....(((...........)))((((((((..(((((((((((((((((((...(((((......))))).)))))).)))))))))))))..))))))))..)))))))
--- SEQUENCE: AGUCAUUGCUCAUGGAAAGAUAAUACAUGCGUAGCAGGAGAAGCCCGUAUAAGCAAUACCCGAUUUUGAGUAAUCGCAUUGCUGUAUACGGGCUUCUAGUGCUGCGCAAAAUGACU
+-- SEQUENCE: UGACCAACGUCGAGUCACAUUCAAUCUCCCGUUGGCGCUUAGUAUGGUCGUUUCCCGUACAACGUAGCAGGACGUUCCGGGAAUACGACCAUACUAAAAGCCAACGGUAUUGGUCA
 -- folded: (((((((....(((...........)))((((((((..(((((((((((((((((((...(((((......))))).)))))).)))))))))))))..))))))))..)))))))
--- energy: -52.50 kcal/mol
+-- energy: -57.00 kcal/mol
 

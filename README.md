@@ -2,9 +2,10 @@
 
 A reinforcement learning framework for RNA sequence design using Graph Neural Networks (GNNs) with a two stage training approach: **Behavioral Cloning (BC)** for imitation learning from expert solutions, followed by **Proximal Policy Optimization (PPO)** for reinforcement learning. The model learns to predict nucleotide mutations at specific locations to design RNA sequences that fold into target secondary structures. Built with PyTorch Geometric for graph based representations of RNA structures.
 
+Eterna100 v2: 42/100
+
 Here is a example video of the working model on a simple example:
 https://github.com/user-attachments/assets/aec89e3d-c555-4739-a701-a7e504d0e7c7
-
 
 
 ## Data
@@ -74,3 +75,21 @@ python train.py
 ```
 
 > **Note**: RL training automatically loads the BC pretrained weights from `./checkpoints/bc/best_model. pt`
+
+
+## Citation
+
+The dataset for this repo is sourced from the following works:
+
+[Koodli RV, Keep B, Coppess KR, Portela F; Eterna participants; Das R. EternaBrain: Automated RNA design through move sets and strategies from an Internet-scale RNA videogame. PLoS Comput Biol. 2019 Jun 27;15(6):e1007059. doi: 10.1371/journal.pcbi.1007059. PMID: 31247029; PMCID: PMC6597038.](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007059)
+
+```bibtex
+@article{Runge2018LearningTD,
+  title={Learning to Design RNA},
+  author={Frederic Runge and Daniel Stoll and Stefan Falkner and Frank Hutter},
+  journal={ArXiv},
+  year={2018},
+  volume={abs/1812.11951},
+  url={https://api.semanticscholar.org/CorpusID:57189443}
+}
+```
