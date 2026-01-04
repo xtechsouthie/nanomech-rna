@@ -19,6 +19,7 @@ training_metrics.png
 checkpoints/
 imitation/data/
 train2.py
+lr_finder.png
 
 
 
