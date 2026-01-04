@@ -1,0 +1,8 @@
+----> Solved 1/1 (100.0%)
+
+Puzzle 1: SOLVED
+-- target: (((((((....(((...........)))((((((((..(((((((((((((((((((...(((((......))))).)))))).)))))))))))))..))))))))..)))))))
+-- SEQUENCE: AGUCAUUGCUCAUGGAAAGAUAAUACAUGCGUAGCAGGAGAAGCCCGUAUAAGCAAUACCCGAUUUUGAGUAAUCGCAUUGCUGUAUACGGGCUUCUAGUGCUGCGCAAAAUGACU
+-- folded: (((((((....(((...........)))((((((((..(((((((((((((((((((...(((((......))))).)))))).)))))))))))))..))))))))..)))))))
+-- energy: -52.50 kcal/mol
+
