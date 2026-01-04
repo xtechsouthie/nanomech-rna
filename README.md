@@ -34,7 +34,7 @@ pip install -r requirements.txt
 1. **Prepare your input**: Add RNA structures (dot bracket notation) to `inputs.txt`, one per line:
 ```
 (((((......))))) 
-((((((.((((....))))))).)))..........
+(((((((....(((...........)))((((((((..(((((((((((((((((((...(((((......))))).)))))).)))))))))))))..))))))))..)))))))
 ```
 
 2. **Run inference**:
