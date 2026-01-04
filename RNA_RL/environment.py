@@ -25,13 +25,6 @@ Transition = namedtuple(
 )
 
 class RNA_design_env(gym.Env):
-    """
-    Gym environment for rna design problem
-
-    State: graph representation of current RNA (sequence + structure)
-    Action: (location, mutation) - which position to mutate and to which base
-    Reward: based on structure distance and energy improvement
-    """
 
     def __init__(
             self,
@@ -42,7 +35,7 @@ class RNA_design_env(gym.Env):
             edge_threshold=0.001,
             max_size=None,
             action_space_size=4,
-            reward_alpha=1.0,
+            reward_alpha=0.8,
             reward_beta=0.2,
             reward_gamma=1.0
     ):
@@ -124,7 +117,7 @@ class RNA_design_env(gym.Env):
             print(f"Invalid location {location}")
 
         new_graph = rna_act(
-            self.current_graph, 
+            self.current_graph.clone(), 
             location=location,
             mutation=mutation,
             action_space=self.action_space_size
@@ -192,7 +185,7 @@ class RNA_design_env(gym.Env):
                 continue
 
             candidate_graph = rna_act(
-                self.current_graph,
+                self.current_graph.clone(),
                 location=location,
                 mutation=mut_idx,
             )
@@ -253,7 +246,7 @@ class RNA_design_env(gym.Env):
             print(f"Target structure: {self.target_structure}")
             print(f"Current sequence: {self.current_seq}")
             print(f"distance: {self.last_distance}")
-            print(f"energy:  {self.last_energy:. 2f}")
+            print(f"energy:  {self.last_energy:.2f}")
             print(f"Best distance: {self.best_distance}")
             print(f"done: {self.done}")
             print(f"{'-'*60}\n")
@@ -263,7 +256,7 @@ class RNA_design_env(gym.Env):
 
     def seed(self, seed=None):
         np.random.seed(seed)
-        torch.random.seed(seed)
+        torch.manual_seed(seed)
 
     def __len__(self):
         return self.length
@@ -281,5 +274,5 @@ class RNA_design_env(gym.Env):
             'step': self.step_count,
             'done': self.done,
             'best_sequence': self.best_seq,
-            'best_distance': self. best_distance
+            'best_distance': self.best_distance
         }

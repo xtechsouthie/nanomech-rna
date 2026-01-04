@@ -67,7 +67,7 @@ class ActorCritic(nn.Module):
     def _init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn. init.kaiming_normal_(m.weight, mode = 'fan_out', nonlinearity ='relu')
+                nn.init.kaiming_normal_(m.weight, mode = 'fan_out', nonlinearity ='relu')
                 if m.bias is not None: 
                     nn.init.constant_(m.bias, 0)
 
@@ -104,7 +104,7 @@ class ActorCritic(nn.Module):
         for i in range(batch_size):
             start, end = ptr[i].item(), ptr[i+1].item()
             graph_logits = location_logits[start:end]
-
+                
             dist = Categorical(logits=graph_logits)
 
             if deterministic:
@@ -112,21 +112,28 @@ class ActorCritic(nn.Module):
             else:
                 local_idx = dist.sample()
 
+
             locations[i] = local_idx
             global_locations[i] = start + local_idx.item()
             location_log_probs[i] = dist.log_prob(local_idx)
             location_entropy[i] = dist.entropy()
 
+            # if i == 0:
+            #     print(f"graph logits:   {graph_logits}")
+            #     print(f"selected local idx from the logits: {local_idx.item()}")
+            #     print(f"selected global idx from the logits: {start + local_idx.item()}")
+            #     print(f"embeddings shape: {embeddings.shape}")
+            #     print(f"ptr shape: {ptr.shape}")
+            #     print(f"ptr: {ptr}")
+
 
         selected_embeddings = embeddings[global_locations]
-
-
 
         mutation_logits = self.mutation_actor(selected_embeddings)
         mutation_dist = Categorical(logits=mutation_logits)
 
         if deterministic:
-            mutations = mutation_dist.argmax(dim=-1)
+            mutations = mutation_logits.argmax(dim=-1)
         else:
             mutations = mutation_dist.sample()
 

@@ -301,13 +301,10 @@ class PPO:
             self.ac.eval()
             loss_pi, pi_info = self.compute_loss_pi(batch, data)
 
-            # if pi_info['kl'] > 1.5 * self.target_kl:
-            #     logger.info(f"early stopping at step {i} due to reaching max kl")
-            #     break
-
-            if pi_info['kl'] > 5.0 * self.target_kl:  # Much higher threshold
-                logger.warning(f"very high KL at iter {i}: {pi_info['kl']:.6f}")
+            if pi_info['kl'] > 1.5 * self.target_kl:
+                logger.info(f"early stopping at step {i} due to reaching max kl")
                 break
+
 
             self.ac.train()
             loss_pi.backward()
